@@ -293,13 +293,48 @@ fn serial_to_arrow(line: &str, state: &mut AppState) -> bool {
     }
 }
 
+/// Automatically finds an available serial port for the pendant
+/// Returns the name of the first available USB serial port, or None if none found
+fn find_serial_port() -> Option<String> {
+    match serialport::available_ports() {
+        Ok(ports) => {
+            // Look for USB serial ports (common for Arduino/CNC pendants)
+            for port in &ports {
+                if let serialport::SerialPortType::UsbPort(_) = port.port_type {
+                    println!("Found USB serial port: {}", port.port_name);
+                    return Some(port.port_name.clone());
+                }
+            }
+            // If no USB ports found, try the first available port
+            if let Some(port) = ports.first() {
+                println!("Using first available serial port: {}", port.port_name);
+                Some(port.port_name.clone())
+            } else {
+                None
+            }
+        }
+        Err(e) => {
+            eprintln!("Error listing serial ports: {}", e);
+            None
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configuration constants
-    let port_name = "COM6";
     let baud_rate = 115200;
 
+    // Automatically determine the serial port
+    let port_name = match find_serial_port() {
+        Some(name) => name,
+        None => {
+            eprintln!("No suitable serial port found. Please ensure your pendant is connected.");
+            return Ok(());
+        }
+    };
+
     // Attempt to open serial port
-    let port = match serialport::new(port_name, baud_rate)
+    let port = match serialport::new(&port_name, baud_rate)
         .timeout(std::time::Duration::from_millis(10))
         .open() {
         Ok(p) => p,
