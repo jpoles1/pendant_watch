@@ -42,9 +42,10 @@ fn send_key_up(key_code: u16) {
 
 fn main() {
     let port_name = "COM6";
-    let baud_rate = 57600;
+    let baud_rate = 115200;
 
     let port = serialport::new(port_name, baud_rate)
+        .timeout(std::time::Duration::from_millis(100))
         .open()
         .expect("Failed to open serial port");
 
@@ -56,6 +57,7 @@ fn main() {
 
     loop {
         let mut line = String::new();
+
         match reader.read_line(&mut line) {
             Ok(0) => break, // EOF
             Ok(_) => {
@@ -95,7 +97,15 @@ fn main() {
                     println!("Unrecognized command: {}", command);
                 }
             }
-            Err(e) => eprintln!("Error reading: {}", e),
+            Err(e) => {
+
+                if e.kind() != std::io::ErrorKind::TimedOut {
+
+                    eprintln!("Error reading: {}", e);
+
+                }
+
+            },
         }
     }
 }
