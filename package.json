@@ -10,7 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "serialport": "^13.0.0"
+    "serialport": "^13.0.0",
+    "koffi": "^2.9.2"
   },
   "overrides": {
     "@serialport/bindings-cpp": "npm:@dimava/serialport-bindings-cpp@latest"

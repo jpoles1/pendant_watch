@@ -2,6 +2,20 @@
 // Use vanilla ts
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
+import koffi from 'koffi';
+
+const lib = koffi.load('./native/target/release/native.dll');
+const send_key_down = lib.func('send_key_down', 'void', ['uint16']);
+const send_key_up = lib.func('send_key_up', 'void', ['uint16']);
+
+const keyMap: { [key: string]: number } = {
+    'left': 0x25,
+    'up': 0x26,
+    'right': 0x27,
+    'down': 0x28,
+    'pageup': 0x21,
+    'pagedown': 0x22,
+};
 
 // Detect whether we are running on Windows or Linux
 const isWindows = process.platform === 'win32';
@@ -43,8 +57,40 @@ const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
 parser.on('data', (line: string) => {
     console.log(`Received data: ${line}`);
-    // Here you would add the logic to emulate keyboard presses based on the received data
-    // This could involve using a library like 'robotjs' or similar to simulate key presses
+    // Parse the G-code command and emulate keyboard input for Mach3
+    let command = line.trim();
+    if (command.startsWith('GCODE: ')) {
+        command = command.substring(7);
+    }
+    // Assuming format: G91G0<axis><value> where axis is X, Y, or Z
+    const match = command.match(/G91G0([XYZ])(-?\d+\.?\d*)/);
+    if (match) {
+        const axis = match[1];
+        const value = parseFloat(match[2]);
+        let key: string;
+        if (axis === 'Y') {
+            key = value > 0 ? 'up' : 'down';
+        } else if (axis === 'X') {
+            key = value > 0 ? 'right' : 'left';
+        } else if (axis === 'Z') {
+            key = value > 0 ? 'pageup' : 'pagedown';
+        } else {
+            console.log('Unsupported axis:', axis);
+            return;
+        }
+        const vk = keyMap[key];
+        if (vk) {
+            send_key_down(0x11); // VK_CONTROL
+            send_key_down(vk);
+            send_key_up(vk);
+            send_key_up(0x11);
+            console.log(`Simulated Ctrl + ${key} for ${axis} axis`);
+        } else {
+            console.log('Unsupported key:', key);
+        }
+    } else {
+        console.log('Unrecognized command:', command);
+    }
 });
 
 port.on('open', () => {
