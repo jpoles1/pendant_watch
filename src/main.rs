@@ -219,8 +219,14 @@ fn draw_status_bar(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn serial_to_gcode(line: &str, state: &mut AppState) {
+    // Remove "GCODE: " prefix if present
+    let mut command = line.trim();
+    if command.starts_with("GCODE: ") {
+        command = &command[7..];
+    }
+
     // In Gcode mode, type out received commands as text input
-    type_text(line);
+    type_text(command);
     // Press enter after typing the command
     // Simulate Enter key press
     send_key_down(0x0D); // VK_RETURN
