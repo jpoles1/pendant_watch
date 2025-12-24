@@ -2,8 +2,11 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -11,18 +14,44 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Get commit message
+      run: |
+        COMMIT_MSG=$(git log --format=%B -1 | tr -d '\n')
+        echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+
+    - name: Check if version commit
+      run: |
+        if [[ "$COMMIT_MSG" =~ ^v ]]; then
+          echo "VERSION_TAG=$COMMIT_MSG" >> $GITHUB_ENV
+        else
+          echo "Not a version commit"
+          exit 0
+        fi
+
+    - name: Create tag
+      if: env.VERSION_TAG != ''
+      run: |
+        git tag $VERSION_TAG
+        git push origin $VERSION_TAG
 
     - name: Install Rust
+      if: env.VERSION_TAG != ''
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
 
     - name: Build
+      if: env.VERSION_TAG != ''
       run: cargo build --release
 
     - name: Create Release
+      if: env.VERSION_TAG != ''
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ env.VERSION_TAG }}
         files: ./target/release/pendant_watch.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
