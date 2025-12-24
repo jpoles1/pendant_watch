@@ -19,23 +19,22 @@ jobs:
 
     - name: Get commit message
       run: |
-        COMMIT_MSG=$(git log --format=%B -1 | tr -d '\n')
-        echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+        $COMMIT_MSG = git log --format=%B -1 | Out-String -NoNewline
+        echo "COMMIT_MSG=$COMMIT_MSG" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
     - name: Check if version commit
       run: |
-        if [[ "$COMMIT_MSG" =~ ^v ]]; then
-          echo "VERSION_TAG=$COMMIT_MSG" >> $GITHUB_ENV
-        else
+        if ($env:COMMIT_MSG -match '^v') {
+          echo "VERSION_TAG=$env:COMMIT_MSG" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        } else {
           echo "Not a version commit"
-          exit 0
-        fi
+        }
 
     - name: Create tag
       if: env.VERSION_TAG != ''
       run: |
-        git tag $VERSION_TAG
-        git push origin $VERSION_TAG
+        git tag $env:VERSION_TAG
+        git push origin $env:VERSION_TAG
 
     - name: Install Rust
       if: env.VERSION_TAG != ''
